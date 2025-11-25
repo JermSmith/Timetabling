@@ -13,18 +13,51 @@ class RequestedCourse():
                  gr_12_req_count, 
                  num_sections_needed):
         
+        
         self._course_code = course_code
+        
         
         self._sem_0_request_count = sem_0_req_count
         self._sem_1_request_count = sem_1_req_count
         self._sem_2_request_count = sem_2_req_count
+        
         
         self._grade_09_request_count = gr_9_req_count
         self._grade_10_request_count = gr_10_req_count
         self._grade_11_request_count = gr_11_req_count
         self._grade_12_request_count = gr_12_req_count
         
+        
         self._num_sections_needed = num_sections_needed
+        
+        
+        # determine whether it is a grade 9, 10, 11, or 12 course
+        self._listed_grade = -1
+        grade_code = self._course_code[-2]
+        if grade_code not in ["1", "2", "3", "4"]:
+            print(f"Warning: Course code of {self._course_code} doesn't match expected formatting for grade_code (e.g. 2G, 3S).")
+            raise RuntimeError
+        else:
+            self._listed_grade = int(grade_code) + 8 # 1->9, 4->12
+        
+        
+        # determine whether there are many grade (n-1)'s enrolled in this grade n class.
+        # if so, we will prioritize its prerequisites in 1st semester
+        self._lower_grades_overrepresented = False
+        
+        if self._listed_grade == 11:
+            if self._grade_10_request_count >= self._grade_11_request_count / 3:
+                self._lower_grades_overrepresented = True
+        elif self._listed_grade == 12:
+            if self._grade_11_request_count >= self._grade_12_request_count / 3:
+                self._lower_grades_overrepresented = True
+        
+        
+        # keep track of prerequisite courses, for those courses that have many students of lower grades taking them
+        self._prereq_courses = []
+        
+                
+        
 
     def __repr__(self):
         course_request_info = "Code: " + self._course_code + "\n"
@@ -59,7 +92,36 @@ class RequestedCourse():
         return course_request_info
 
 
+    def total_num_requests(self):
+        return self._grade_09_request_count + self._grade_10_request_count +\
+        self._grade_11_request_count + self._grade_12_request_count
+        
+    def code(self):
+        return self._course_code
 
+    def num_sections_needed(self):
+        return self._num_sections_needed
+    
+    def listed_grade(self):
+        return self._listed_grade
+    
+    def add_prereq_courses_if_lower_grades_overrepresented(self, all_course_codes):
+        if self._lower_grades_overrepresented:
+            print(f"The course {self._course_code}, a grade {self._listed_grade} course, has many grade {self._listed_grade - 1} students enrolled. Please list this course's prerequisites that these grade {self._listed_grade - 1} students will need to take in 1st semester.")
+            more_prereq_to_input = True
+            while more_prereq_to_input:
+                prereq_code = input(f"Enter a course code for a prereq for {self._course_code} 'stop' to stop: ")
+                if prereq_code not in all_course_codes:
+                    print("Invalid course code. Try again.")
+                elif prereq_code in self._prereq_courses:
+                    print("Course already added to prereqs. Try again.")
+                elif prereq_code.lower().strip() == "stop":
+                    more_prereq_to_input = False
+                else:
+                    self._prereq_courses.append(prereq_code)
+        
+                    
+        
 
 class CourseRequestData():
     def __init__(self):
